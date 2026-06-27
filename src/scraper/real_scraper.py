@@ -6,23 +6,19 @@ from pathlib import Path
 from datetime import datetime
 
 sys.path.insert(0, str(Path.home() / "Desktop" / "airbnb-douala"))
-
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
-
 from config import DATA_RAW_DIR
 
 DATA_RAW_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUT_FILE = DATA_RAW_DIR / "listings_real_raw.json"
 
-BASE_URL = "https://www.airbnb.com/s/Douala/homes"
-MAX_PAGES = 15
-
-print("Real Airbnb Scraper v2 - Douala (multi-page)")
-print("")
+URL = "https://www.airbnb.com/s/Douala/homes?flexible_trip_lengths%5B%5D=one_week&date_picker_type=flexible_dates"
 
 options = Options()
 options.add_argument("--start-maximized")
@@ -31,115 +27,114 @@ options.add_experimental_option("excludeSwitches", ["enable-automation"])
 options.add_experimental_option("useAutomationExtension", False)
 options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
 
-print("Starting Chrome browser...")
+print("Starting Chrome...")
 service = Service(ChromeDriverManager().install())
 driver = webdriver.Chrome(service=service, options=options)
 
 all_results = []
-seen_titles = set()
+seen = set()
+page_num = 0
 
-def parse_card(card_text, index, page_num):
-    lines = [l.strip() for l in card_text.split("\n") if l.strip()]
+def extract_cards():
+    cards = driver.find_elements(By.CSS_SELECTOR, "[itemprop='itemListElement']")
+    if not cards:
+        cards = driver.find_elements(By.CSS_SELECTOR, "div[data-testid='card-container']")
+    return cards
+
+def parse_card(text, index, page):
+    lines = [l.strip() for l in text.split("\n") if l.strip()]
     parsed = {
-        "index": index,
-        "page": page_num,
-        "property_type": None,
-        "neighborhood": None,
-        "title": None,
-        "price_raw": None,
-        "rating": None,
-        "reviews": None,
-        "raw_text": card_text[:400],
+        "index": index, "page": page,
+        "property_type": None, "neighborhood": None,
+        "title": None, "price_raw": None,
+        "rating": None, "reviews": None,
+        "raw_text": text[:300],
         "scraped_at": datetime.now().isoformat()
     }
     if lines:
         first = lines[0]
-        if "\u00b7" in first or "\u22c5" in first:
-            sep = "\u00b7" if "\u00b7" in first else "\u22c5"
-            parts = first.split(sep)
-            parsed["property_type"] = parts[0].strip()
-            if len(parts) > 1:
-                parsed["neighborhood"] = parts[1].strip()
+        for sep in ["\u00b7", "\u22c5", "-"]:
+            if sep in first:
+                parts = first.split(sep)
+                parsed["property_type"] = parts[0].strip()
+                if len(parts) > 1:
+                    parsed["neighborhood"] = parts[1].strip()
+                break
         else:
             parsed["property_type"] = first
     if len(lines) > 1:
         parsed["title"] = lines[1]
     for line in lines:
-        if "\u20ac" in line or "FCFA" in line or "XAF" in line:
+        if "\u20ac" in line or "XAF" in line or "FCFA" in line:
             parsed["price_raw"] = line
         m = re.match(r"^(\d[.,]\d{1,2})", line)
-        if m and parsed["rating"] is None:
+        if m and not parsed["rating"]:
             try:
                 parsed["rating"] = float(m.group(1).replace(",", "."))
-            except:
-                pass
-        m2 = re.search(r"\((\d+)", line)
-        if m2 and parsed["reviews"] is None:
-            try:
-                parsed["reviews"] = int(m2.group(1))
             except:
                 pass
     return parsed
 
 try:
-    for page_num in range(MAX_PAGES):
-        offset = page_num * 18
-        url = BASE_URL if offset == 0 else BASE_URL + "?items_offset=" + str(offset)
+    print("Opening: " + URL)
+    driver.get(URL)
+    time.sleep(30)
 
-        print("--- Page " + str(page_num + 1) + " ---")
-        driver.get(url)
-        time.sleep(4)
+    while True:
+        page_num += 1
+        print("--- Page " + str(page_num) + " ---")
 
-        for scroll in range(5):
-            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(1.5)
+        # Scroll to load all cards
+        for i in range(8):
+            driver.execute_script("window.scrollBy(0, 600);")
+            time.sleep(1)
 
-        cards = driver.find_elements(By.CSS_SELECTOR, "[itemprop='itemListElement']")
-        if len(cards) == 0:
-            cards = driver.find_elements(By.CSS_SELECTOR, "div[data-testid='card-container']")
+        driver.execute_script("window.scrollTo(0, 0);")
+        time.sleep(1)
 
+        cards = extract_cards()
         print("Cards found: " + str(len(cards)))
 
-        new_count = 0
-        for i, card in enumerate(cards):
+        new = 0
+        for card in cards:
             try:
                 text = card.text
                 if not text.strip():
                     continue
                 key = text[:80]
-                if key in seen_titles:
+                if key in seen:
                     continue
-                seen_titles.add(key)
-                parsed = parse_card(text, len(all_results), page_num + 1)
-                all_results.append(parsed)
-                new_count += 1
-            except Exception as e:
-                print("Error card " + str(i) + ": " + str(e))
+                seen.add(key)
+                all_results.append(parse_card(text, len(all_results), page_num))
+                new += 1
+            except:
+                pass
 
-        print("New unique listings: " + str(new_count))
-        print("Total so far: " + str(len(all_results)))
+        print("New: " + str(new) + " | Total: " + str(len(all_results)))
 
-        if new_count == 0 and page_num > 0:
-            print("No new listings - stopping")
+        # Click next button
+        try:
+            next_btn = driver.find_element(By.CSS_SELECTOR, "a[aria-label='Suivant']")
+            if not next_btn:
+                next_btn = driver.find_element(By.CSS_SELECTOR, "a[aria-label='Next']")
+            driver.execute_script("arguments[0].click();", next_btn)
+            print("Clicked Next button")
+            time.sleep(5)
+        except:
+            print("No Next button found - end of results")
             break
 
-        time.sleep(2)
+        if page_num >= 60:
+            break
 
     OUTPUT_FILE.write_text(
         json.dumps({"results": all_results, "total": len(all_results)}, ensure_ascii=False, indent=2),
         encoding="utf-8"
     )
-
     print("")
     print("=================================")
     print("TOTAL UNIQUE LISTINGS: " + str(len(all_results)))
     print("Saved to: " + str(OUTPUT_FILE))
-    if all_results:
-        print("")
-        print("--- SAMPLE PARSED LISTING ---")
-        for k, v in all_results[0].items():
-            if k != "raw_text":
-                print("  " + str(k) + ": " + str(v))
 
 finally:
     time.sleep(5)
