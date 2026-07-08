@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Airbnb Douala — Interface</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    :root{
+      --bg:#0a0d14;--card:#111420;--primary:#FF385C;
+      --gold:#FFB400;--teal:#00D4AA;--blue:#4A7FFF;
+      --text:#F0F2FF;--muted:#8891B0;--border:rgba(255,255,255,0.07);
+    }
+    body{font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+    header{
+      background:rgba(10,13,20,0.95);border-bottom:1px solid var(--border);
+      padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between;
+      position:sticky;top:0;z-index:100;backdrop-filter:blur(10px);
+    }
+    .logo{font-size:1.2rem;font-weight:700}
+    .logo span{color:var(--primary)}
+    .status{display:flex;align-items:center;gap:6px;font-size:0.75rem;
+      background:rgba(0,212,170,0.1);border:1px solid rgba(0,212,170,0.3);
+      color:var(--teal);padding:4px 12px;border-radius:20px}
+    .dot{width:6px;height:6px;background:var(--teal);border-radius:50%;animation:pulse 2s infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+
+    main{padding:2rem;max-width:1400px;margin:0 auto}
+
+    /* CONTROL PANEL */
+    .panel{
+      background:var(--card);border:1px solid var(--border);
+      border-radius:16px;padding:1.5rem;margin-bottom:1.5rem;
+    }
+    .panel-title{font-size:1rem;font-weight:600;color:var(--primary);margin-bottom:1rem}
+
+    .controls{display:grid;grid-template-columns:repeat(4,1fr) auto auto;gap:12px;align-items:end}
+
+    label{display:block;font-size:0.7rem;color:var(--muted);margin-bottom:4px;
+      text-transform:uppercase;letter-spacing:0.05em}
+
+    select,input{
+      width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--border);
+      border-radius:8px;padding:10px 12px;color:var(--text);font-size:0.85rem;
+      font-family:inherit;
+    }
+    select:focus,input:focus{outline:none;border-color:var(--primary)}
+    select option{background:#1a1f30}
+
+    .btn{
+      border:none;border-radius:8px;padding:10px 20px;font-size:0.85rem;
+      font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;
+      transition:opacity 0.2s,transform 0.2s;
+    }
+    .btn:hover{opacity:0.85;transform:translateY(-1px)}
+    .btn:disabled{opacity:0.4;cursor:not-allowed;transform:none}
+    .btn-primary{background:var(--primary);color:white}
+    .btn-teal{background:rgba(0,212,170,0.15);border:1px solid rgba(0,212,170,0.3);color:var(--teal)}
+    .btn-gold{background:rgba(255,180,0,0.15);border:1px solid rgba(255,180,0,0.3);color:var(--gold)}
+
+    /* LOG */
+    .log-box{
+      background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:8px;
+      padding:10px 14px;font-family:'Courier New',monospace;font-size:0.78rem;
+      color:var(--teal);min-height:48px;max-height:100px;overflow-y:auto;margin-top:10px;
+      display:none;
+    }
+    .log-box.active{display:block}
+
+    /* KPIs */
+    .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:1.5rem}
+    .kpi{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.2rem}
+    .kpi-label{font-size:0.7rem;color:var(--muted);margin-bottom:6px}
+    .kpi-value{font-size:1.8rem;font-weight:800;line-height:1}
+    .kpi-sub{font-size:0.68rem;color:var(--muted);margin-top:3px}
+
+    /* CHARTS */
+    .charts-row{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px}
+    .chart-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:1.5rem}
+    .chart-title{font-size:0.95rem;font-weight:600;margin-bottom:4px}
+    .chart-sub{font-size:0.72rem;color:var(--muted);margin-bottom:1rem}
+    .chart-wrap{position:relative;height:230px}
+
+    /* TABLE */
+    .table-card{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+    .table-header{padding:1rem 1.5rem;border-bottom:1px solid var(--border);
+      display:flex;align-items:center;justify-content:space-between}
+    .table-header h3{font-size:0.95rem;font-weight:600}
+    .table-wrap{overflow-x:auto;max-height:450px;overflow-y:auto}
+    table{width:100%;border-collapse:collapse}
+    th{background:rgba(255,255,255,0.03);padding:0.7rem 1rem;text-align:left;
+      font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;
+      border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;top:0}
+    td{padding:0.7rem 1rem;font-size:0.82rem;border-bottom:1px solid rgba(255,255,255,0.03)}
+    tr:hover td{background:rgba(255,255,255,0.02)}
+
+    .badge{display:inline-block;padding:2px 8px;border-radius:5px;font-size:0.68rem;font-weight:600}
+    .b-yes{background:rgba(0,212,170,0.12);color:var(--teal)}
+    .b-no{background:rgba(255,255,255,0.05);color:var(--muted)}
+    .b-free{background:rgba(74,127,255,0.12);color:var(--blue)}
+    .b-paid{background:rgba(255,180,0,0.12);color:var(--gold)}
+    .b-real{background:rgba(255,56,92,0.12);color:var(--primary)}
+    .b-sim{background:rgba(255,255,255,0.06);color:var(--muted)}
+
+    .section-label{font-size:0.7rem;text-transform:uppercase;letter-spacing:0.12em;
+      color:var(--muted);margin-bottom:1rem}
+
+    .spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,0.2);
+      border-top-color:white;border-radius:50%;animation:spin 0.7s linear infinite;
+      display:inline-block;vertical-align:middle;margin-right:6px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    #error-box{background:rgba(255,56,92,0.1);border:1px solid rgba(255,56,92,0.3);
+      color:var(--primary);border-radius:8px;padding:10px 14px;font-size:0.82rem;
+      margin-top:10px;display:none}
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🏠 Airbnb <span>Douala</span> Intelligence</div>
+  <div class="status"><div class="dot"></div> Connecté à MySQL</div>
+</header>
+
+<main>
+
+  <!-- CONTROL PANEL -->
+  <div class="panel">
+    <div class="panel-title">⚡ Analyser le marché Airbnb de Douala</div>
+    <div class="controls">
+      <div>
+        <label>Quartier</label>
+        <select id="sel-quartier">
+          <option value="all">Tous les quartiers</option>
+          <option value="Bonanjo">Bonanjo</option>
+          <option value="Bonapriso">Bonapriso</option>
+          <option value="Akwa">Akwa</option>
+          <option value="Bali">Bali</option>
+          <option value="Makepe">Makepe</option>
+          <option value="Deido">Deido</option>
+          <option value="Logpom">Logpom</option>
+          <option value="Kotto">Kotto</option>
+          <option value="New Bell">New Bell</option>
+          <option value="Logbessou">Logbessou</option>
+          <option value="Douala">Douala centre</option>
+        </select>
+      </div>
+      <div>
+        <label>Type de bien</label>
+        <select id="sel-type">
+          <option value="all">Tous types</option>
+          <option value="Appartement entier">Appartement</option>
+          <option value="Studio">Studio</option>
+          <option value="Villa">Villa</option>
+          <option value="Chambre privée">Chambre privée</option>
+        </select>
+      </div>
+      <div>
+        <label>Prix max / nuit (XAF)</label>
+        <input type="number" id="sel-prix" placeholder="ex: 50000" step="5000">
+      </div>
+      <div>
+        <label>Source</label>
+        <select id="sel-source">
+          <option value="all">Toutes sources</option>
+          <option value="real">Réelles uniquement</option>
+          <option value="simulated">Simulées uniquement</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="loadData()" id="btn-load">
+        🔍 Analyser
+      </button>
+      <button class="btn btn-gold" onclick="scrapeQuartier()" id="btn-scrape">
+        ⚡ Scraper
+      </button>
+    </div>
+    <div id="log" class="log-box"></div>
+    <div id="error-box"></div>
+  </div>
+
+  <!-- KPIs -->
+  <p class="section-label">Vue d'ensemble — données MySQL</p>
+  <div class="kpis">
+    <div class="kpi">
+      <div class="kpi-label">Annonces trouvées</div>
+      <div class="kpi-value" id="kpi-total" style="color:var(--primary)">—</div>
+      <div class="kpi-sub" id="kpi-source">base de données</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Prix moyen / nuit</div>
+      <div class="kpi-value" id="kpi-prix" style="color:var(--gold)">—</div>
+      <div class="kpi-sub">XAF</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Note moyenne</div>
+      <div class="kpi-value" id="kpi-note" style="color:var(--teal)">—</div>
+      <div class="kpi-sub">/ 5.0</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Taux occupation</div>
+      <div class="kpi-value" id="kpi-occ" style="color:var(--blue)">—</div>
+      <div class="kpi-sub">moyen</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Annonces réelles</div>
+      <div class="kpi-value" id="kpi-real" style="color:var(--primary)">—</div>
+      <div class="kpi-sub">source Airbnb.com</div>
+    </div>
+  </div>
+
+  <!-- CHARTS -->
+  <div class="charts-row">
+    <div class="chart-card">
+      <div class="chart-title">Prix moyen par quartier</div>
+      <div class="chart-sub">Prix médian par nuit en XAF — données MySQL</div>
+      <div class="chart-wrap"><canvas id="c-prix"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Types de biens</div>
+      <div class="chart-sub">Répartition des annonces</div>
+      <div class="chart-wrap"><canvas id="c-type"></canvas></div>
+    </div>
+  </div>
+
+  <!-- TABLE -->
+  <div class="table-card" style="margin-bottom:2rem">
+    <div class="table-header">
+      <h3 id="table-title">Annonces — chargement...</h3>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-teal" onclick="exportCSV()" style="padding:6px 14px;font-size:0.78rem">⬇ CSV</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th><th>Titre</th><th>Quartier</th><th>Type</th>
+            <th>Prix/nuit XAF</th><th>Note</th><th>Avis</th>
+            <th>Superhost</th><th>Occupation</th><th>Revenu/mois</th><th>Source</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script>
+const API = "http://localhost:5000";
+let chartPrix = null, chartType = null;
+let currentListings = [];
+
+function log(msg, color) {
+  const box = document.getElementById("log");
+  box.classList.add("active");
+  box.style.color = color || "var(--teal)";
+  box.textContent = "> " + msg;
+}
+
+function showError(msg) {
+  const box = document.getElementById("error-box");
+  box.style.display = "block";
+  box.textContent = "Erreur : " + msg;
+  setTimeout(() => { box.style.display = "none"; }, 5000);
+}
+
+async function loadData() {
+  const quartier = document.getElementById("sel-quartier").value;
+  const type = document.getElementById("sel-type").value;
+  const prix = document.getElementById("sel-prix").value;
+  const source = document.getElementById("sel-source").value;
+
+  const btn = document.getElementById("btn-load");
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Chargement...';
+  log("Connexion à MySQL...");
+
+  try {
+    const params = new URLSearchParams({ quartier, type, source, limit: 500 });
+    if (prix) params.append("prix_max", prix);
+
+    const res = await fetch(API + "/api/listings?" + params);
+    if (!res.ok) throw new Error("Serveur Flask non accessible (status " + res.status + ")");
+
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    currentListings = data.listings;
+    log("✓ " + data.total + " annonces chargées depuis MySQL", "var(--teal)");
+
+    updateKPIs(data.kpis, data.total, source);
+    loadStats();
+    renderTable(data.listings.slice(0, 200));
+
+    document.getElementById("table-title").textContent =
+      "Annonces — " + (quartier === "all" ? "Tous quartiers" : quartier) +
+      " (" + data.total + " résultats)";
+
+  } catch (e) {
+    log("Erreur : " + e.message, "var(--primary)");
+    showError(e.message + " — Vérifiez que Flask tourne sur le port 5000");
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = "🔍 Analyser";
+  }
+}
+
+async function loadStats() {
+  try {
+    const res = await fetch(API + "/api/stats");
+    const data = await res.json();
+    if (data.error) return;
+    renderCharts(data.stats_quartiers, data.stats_types);
+  } catch (e) {}
+}
+
+async function scrapeQuartier() {
+  const quartier = document.getElementById("sel-quartier").value;
+  const nom = quartier === "all" ? "Douala" : quartier;
+
+  const btn = document.getElementById("btn-scrape");
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Scraping...';
+  log("Scraping Airbnb pour : " + nom + "...", "var(--gold)");
+
+  try {
+    const res = await fetch(API + "/api/scrape", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ quartier: nom })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+
+   
+    log("✓ Scrape OK — " + data.annonces_trouvees + " annonces trouvées" +
+  (data.prix_moyen_xaf ? " | Prix moy: " + data.prix_moyen_xaf.toLocaleString("fr-FR") + " XAF" : ""), "var(--teal)");
+  } catch (e) {
+    log("Erreur scrape: " + e.message, "var(--primary)");
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = "⚡ Scraper";
+  }
+}
+
+function updateKPIs(kpis, total, source) {
+  document.getElementById("kpi-total").textContent = total.toLocaleString("fr-FR");
+  document.getElementById("kpi-source").textContent =
+    source === "real" ? "annonces réelles" : source === "simulated" ? "simulées" : "toutes sources";
+  document.getElementById("kpi-prix").textContent =
+    kpis && kpis.avg_price ? Math.round(kpis.avg_price).toLocaleString("fr-FR") : "—";
+  document.getElementById("kpi-note").textContent =
+    kpis && kpis.avg_rating ? parseFloat(kpis.avg_rating).toFixed(2) : "—";
+  document.getElementById("kpi-occ").textContent =
+    kpis && kpis.avg_occ ? Math.round(kpis.avg_occ * 100) + "%" : "—";
+  document.getElementById("kpi-real").textContent =
+    currentListings.filter(l => l.source === "real").length;
+}
+
+function renderCharts(statsQ, statsT) {
+  if (chartPrix) chartPrix.destroy();
+  chartPrix = new Chart(document.getElementById("c-prix"), {
+    type: "bar",
+    data: {
+      labels: statsQ.map(s => s.neighborhood),
+      datasets: [{
+        label: "Prix moyen XAF",
+        data: statsQ.map(s => s.prix_moyen),
+        backgroundColor: statsQ.map((_,i) => i===0?"#FF385C":i===1?"#FFB400":"rgba(74,127,255,0.7)"),
+        borderRadius: 5
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid:{color:"rgba(255,255,255,0.04)"}, ticks:{color:"#8891B0",font:{size:10},maxRotation:40} },
+        y: { grid:{color:"rgba(255,255,255,0.04)"}, ticks:{color:"#8891B0",callback:v=>(v/1000)+"k"} }
+      }
+    }
+  });
+
+  if (chartType) chartType.destroy();
+  chartType = new Chart(document.getElementById("c-type"), {
+    type: "doughnut",
+    data: {
+      labels: statsT.map(s => s.type),
+      datasets: [{
+        data: statsT.map(s => s.total),
+        backgroundColor: ["#FF385C","#FFB400","#00D4AA","#4A7FFF","#E91E63"],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: "65%",
+      plugins: { legend: { labels: { color:"#8891B0", font:{size:10} } } }
+    }
+  });
+}
+
+function badge(val, type) {
+  if (type === "bool") return val ? '<span class="badge b-yes">Oui</span>' : '<span class="badge b-no">Non</span>';
+  if (type === "source") return val === "real" ? '<span class="badge b-real">Réelle</span>' : '<span class="badge b-sim">Simulée</span>';
+  return val || "—";
+}
+
+function renderTable(data) {
+  document.getElementById("tbody").innerHTML = data.map(d => `
+    <tr>
+      <td style="color:var(--muted);font-size:0.72rem">${d.id}</td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+          title="${(d.title||'').replace(/"/g,"'")}">
+        ${(d.title||'—').substring(0,40)}${(d.title||'').length>40?'…':''}
+      </td>
+      <td>${d.neighborhood||'—'}</td>
+      <td style="font-size:0.78rem">${d.type||'—'}</td>
+      <td style="font-weight:600;color:var(--gold)">${d.price_per_night?Number(d.price_per_night).toLocaleString("fr-FR"):"—"}</td>
+      <td style="color:var(--teal)">${d.rating?parseFloat(d.rating).toFixed(1):"—"}</td>
+      <td>${d.reviews||"—"}</td>
+      <td>${badge(d.superhost,"bool")}</td>
+      <td>${d.occupancy_rate?Math.round(d.occupancy_rate*100)+"%":"—"}</td>
+      <td>${d.monthly_revenue?Number(d.monthly_revenue).toLocaleString("fr-FR")+"XAF":"—"}</td>
+      <td>${badge(d.source,"source")}</td>
+    </tr>
+  `).join("");
+}
+
+function exportCSV() {
+  if (!currentListings.length) return;
+  const headers = ["id","title","neighborhood","type","price_per_night","rating","reviews","superhost","occupancy_rate","monthly_revenue","source"];
+  const csv = [headers.join(","), ...currentListings.map(d => headers.map(h => '"'+(d[h]||"")+ '"').join(","))].join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], {type:"text/csv;charset=utf-8"}));
+  a.download = "airbnb_douala_export.csv";
+  a.click();
+}
+
+window.onload = () => loadData();
+</script>
+</body>
+</html>

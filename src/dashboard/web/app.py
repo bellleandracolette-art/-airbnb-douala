@@ -53,7 +53,7 @@ def api_listings():
             query += " AND source = %s"
             params.append(source)
 
-        query += " ORDER BY price_per_night DESC LIMIT 2000"
+        query += " ORDER BY price_per_night DESC LIMIT 500"
         cursor.execute(query, params)
         listings = cursor.fetchall()
 
