@@ -95,7 +95,7 @@ def api_stats():
         conn.close()
         return jsonify({"stats_quartiers": stats_q, "stats_types": stats_t})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": str(e)}), 2000
 
 
 @app.route("/api/scrape", methods=["POST"])
@@ -136,7 +136,7 @@ def api_scrape():
         })
 
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": str(e)}), 2000
 
 
 if __name__ == "__main__":

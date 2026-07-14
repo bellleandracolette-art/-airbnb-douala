@@ -2,3 +2,7 @@
 ~$*
 data/processed/*.xlsx
 data/raw/*.json
+
+__pycache__/
+*.pyc
+~$*
